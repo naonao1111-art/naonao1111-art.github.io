@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>管理员 · 更新春游分组</title>
+    <style>
+        body { font-family: system-ui; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #f5f9ff; }
+        .card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        input, textarea { width: 100%; padding: 10px; margin: 8px 0 16px; border: 1px solid #ccc; border-radius: 16px; font-family: inherit; font-size: 0.95rem; }
+        button { background: #2b7a4b; color: white; border: none; padding: 12px; width: 100%; border-radius: 40px; font-size: 1rem; margin-top: 8px; cursor: pointer; }
+        .group-card, .contact-card { background: #f9fafc; border-radius: 20px; padding: 14px; margin-bottom: 16px; }
+        .card-title { font-weight: bold; margin-bottom: 12px; font-size: 1.1rem; }
+        .msg { margin-top: 16px; text-align: center; color: #2b7a4b; }
+        hr { margin: 20px 0; }
+    </style>
+</head>
+<body>
+<h1>🔐 管理员更新春游分组</h1>
+<div class="card">
+    <label>管理员密码：</label>
+    <input type="password" id="adminPwd" placeholder="输入预设密码">
+    <button onclick="loadCurrentData()">加载当前数据</button>
+</div>
+<div id="editor" style="display: none;">
+    <div class="card">
+        <div class="card-title">📝 编辑分组 (共8组)</div>
+        <div id="groupsEditor"></div>
+    </div>
+    <div class="card">
+        <div class="card-title">📞 编辑联系人</div>
+        <div id="contactsEditor"></div>
+        <button onclick="addContact()">➕ 新增联系人</button>
+    </div>
+    <button onclick="saveData()">💾 保存所有更改</button>
+    <div id="msg" class="msg"></div>
+</div>
+
+<script>
+    // ========== 请替换为你的 Supabase 信息 ==========
+    const SUPABASE_URL = 'https://qatawblssymiznettmcv.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_EZByEUjm1WpSlC2QF7BRsg_a_Evs-UM';
+    // ============================================
+
+    // 预设的管理员密码（只有你知道）
+    const ADMIN_PASSWORD = 'yjsawnnslbtn0211';   // 例如 "class2026"
+
+    let currentGroups = [];
+    let currentContacts = [];
+
+    async function loadCurrentData() {
+        const pwd = document.getElementById('adminPwd').value;
+        if (pwd !== ADMIN_PASSWORD) {
+            alert("密码错误，无权编辑");
+            return;
+        }
+        try {
+            // 获取分组
+            const groupsRes = await fetch(`${SUPABASE_URL}/rest/v1/groups?order=group_id.asc`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            currentGroups = await groupsRes.json();
+
+            // 获取联系人
+            const contactsRes = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            currentContacts = await contactsRes.json();
+
+            document.getElementById('editor').style.display = 'block';
+            renderGroupsEditor();
+            renderContactsEditor();
+        } catch (err) {
+            alert("加载失败：" + err.message);
+        }
+    }
+
+    function renderGroupsEditor() {
+        let html = '';
+        currentGroups.forEach(group => {
+            html += `
+                <div class="group-card" data-group-id="${group.id}">
+                    <div><strong>${escapeHtml(group.name) || `第${group.group_id}组`}</strong> (组号 ${group.group_id})</div>
+                    <label>成员名单：</label>
+                    <textarea rows="3" data-group-members="${group.id}">${escapeHtml(group.members || '')}</textarea>
+                    <label>组长电话：</label>
+                    <input type="text" data-group-phone="${group.id}" value="${escapeHtml(group.phone || '')}" placeholder="填写组长电话">
+                </div>
+            `;
+        });
+        document.getElementById('groupsEditor').innerHTML = html;
+    }
+
+    function renderContactsEditor() {
+        let html = '';
+        currentContacts.forEach(contact => {
+            html += `
+                <div class="contact-card" data-contact-id="${contact.id}">
+                    <label>称呼：</label>
+                    <input type="text" data-contact-label="${contact.id}" value="${escapeHtml(contact.label)}">
+                    <label>电话：</label>
+                    <input type="text" data-contact-phone="${contact.id}" value="${escapeHtml(contact.phone || '')}">
+                </div>
+            `;
+        });
+        document.getElementById('contactsEditor').innerHTML = html;
+    }
+
+    function addContact() {
+        const container = document.getElementById('contactsEditor');
+        const newDiv = document.createElement('div');
+        newDiv.className = 'contact-card';
+        newDiv.setAttribute('data-new', 'true');
+        newDiv.innerHTML = `
+            <label>称呼：</label><input type="text" class="new-label" placeholder="如：家委">
+            <label>电话：</label><input type="text" class="new-phone" placeholder="手机号">
+        `;
+        container.appendChild(newDiv);
+    }
+
+    async function saveData() {
+        const pwd = document.getElementById('adminPwd').value;
+        if (pwd !== ADMIN_PASSWORD) {
+            alert("密码错误，保存失败");
+            return;
+        }
+
+        // 更新分组（包括 members 和 phone）
+        const groupCards = document.querySelectorAll('.group-card');
+        for (let card of groupCards) {
+            const id = card.getAttribute('data-group-id');
+            const members = card.querySelector(`textarea[data-group-members="${id}"]`).value;
+            const phone = card.querySelector(`input[data-group-phone="${id}"]`).value;
+            await fetch(`${SUPABASE_URL}/rest/v1/groups?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ members: members, phone: phone })
+            });
+        }
+
+        // 更新已有联系人
+        const contactCards = document.querySelectorAll('.contact-card[data-contact-id]');
+        for (let card of contactCards) {
+            const id = card.getAttribute('data-contact-id');
+            const label = card.querySelector(`input[data-contact-label="${id}"]`).value;
+            const phone = card.querySelector(`input[data-contact-phone="${id}"]`).value;
+            await fetch(`${SUPABASE_URL}/rest/v1/contacts?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ label: label, phone: phone })
+            });
+        }
+
+        // 新增联系人
+        const newCards = document.querySelectorAll('.contact-card[data-new="true"]');
+        for (let card of newCards) {
+            const label = card.querySelector('.new-label').value;
+            const phone = card.querySelector('.new-phone').value;
+            if (label.trim()) {
+                await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label: label, phone: phone })
+                });
+            }
+        }
+
+        document.getElementById('msg').innerText = '✅ 保存成功！全班同学将看到更新。';
+        setTimeout(() => { document.getElementById('msg').innerText = ''; }, 3000);
+        // 重新加载
+        await loadCurrentData();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>

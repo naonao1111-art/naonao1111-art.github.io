@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>班级春游 · 分组通讯录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f0f7ff; font-family: system-ui; padding: 20px 16px; }
+        .container { max-width: 750px; margin: 0 auto; }
+        .card { background: white; border-radius: 28px; padding: 18px 20px; margin-bottom: 24px; box-shadow: 0 6px 14px rgba(0,0,0,0.05); }
+        .card-title { font-size: 1.45rem; font-weight: 600; margin-bottom: 16px; border-left: 5px solid #2b7a4b; padding-left: 14px; }
+        .groups-grid { display: flex; flex-direction: column; gap: 18px; }
+        .group-item { background: #fefef7; border-radius: 20px; border: 1px solid #e2edf2; overflow: hidden; }
+        .group-header { background: #eef4ea; padding: 12px 16px; font-weight: 700; font-size: 1.2rem; color: #2c5a2e; }
+        .members-list { padding: 14px 16px; font-size: 0.95rem; white-space: pre-wrap; }
+        .members-empty { color: #8aa0ae; font-style: italic; }
+        .group-phone { margin-top: 8px; color: #2b7a4b; font-size: 0.9rem; }
+        .contacts-list { display: flex; flex-direction: column; gap: 12px; }
+        .contact-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; background: #f9fafc; border-radius: 18px; }
+        .contact-label { font-weight: 600; color: #2b4f3c; }
+        .contact-phone { font-family: monospace; background: white; padding: 5px 12px; border-radius: 40px; }
+        .admin-link { text-align: center; margin-top: 30px; }
+        .admin-link a { background: #eef2f5; padding: 6px 16px; border-radius: 50px; text-decoration: none; color: #2b7a4b; font-size: 0.8rem; }
+        @media (max-width: 550px) { .contact-row { flex-direction: column; align-items: flex-start; gap: 6px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero" style="text-align:center; margin-bottom:28px;">
+        <h1 style="font-size:1.9rem; background:linear-gradient(135deg,#2b7a4b,#1d5a3c); background-clip:text; -webkit-background-clip:text; color:transparent;">🌸 春日同行 · 春游分组</h1>
+        <p>班级通讯录 | 分组名单</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📞 紧急联络站</div>
+        <div id="contactsContainer" class="contacts-list">加载中...</div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">👥 春游小组 · 共8组</div>
+        <div id="groupsContainer" class="groups-grid">加载中...</div>
+    </div>
+
+    <div class="admin-link">
+        <a href="admin.html">🔐 管理面板 (仅组织者)</a>
+    </div>
+</div>
+
+<script>
+    // ========== 请替换为你的 Supabase 信息 ==========
+    const SUPABASE_URL = 'https://qatawblssymiznettmcv.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_EZByEUjm1WpSlC2QF7BRsg_a_Evs-UM';
+    // ============================================
+
+    async function fetchData() {
+        try {
+            // 获取分组（按 group_id 排序）
+            const groupsRes = await fetch(`${SUPABASE_URL}/rest/v1/groups?order=group_id.asc`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            const groups = await groupsRes.json();
+            renderGroups(groups);
+
+            // 获取联系人
+            const contactsRes = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            });
+            const contacts = await contactsRes.json();
+            renderContacts(contacts);
+        } catch (err) {
+            console.error(err);
+            document.getElementById('groupsContainer').innerHTML = '<div style="color:#c33;">数据加载失败，请检查网络</div>';
+        }
+    }
+
+    function renderGroups(groups) {
+        const container = document.getElementById('groupsContainer');
+        if (!groups || groups.length === 0) { container.innerHTML = '<div>暂无分组数据</div>'; return; }
+        container.innerHTML = '';
+        groups.forEach(group => {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'group-item';
+            let membersHtml = group.members ? escapeHtml(group.members).replace(/\n/g,'<br>') : '<span class="members-empty">✨ 成员名单待补充 ✨</span>';
+            let phoneHtml = group.phone ? `<div class="group-phone">📞 组长电话：${escapeHtml(group.phone)}</div>` : '';
+            groupDiv.innerHTML = `
+                <div class="group-header">${escapeHtml(group.name) || `第${group.group_id}组`}</div>
+                <div class="members-list">
+                    ${membersHtml}
+                    ${phoneHtml}
+                </div>
+            `;
+            container.appendChild(groupDiv);
+        });
+    }
+
+    function renderContacts(contacts) {
+        const container = document.getElementById('contactsContainer');
+        if (!contacts || contacts.length === 0) { container.innerHTML = '<div>暂无联系人信息</div>'; return; }
+        container.innerHTML = '';
+        contacts.forEach(contact => {
+            const row = document.createElement('div');
+            row.className = 'contact-row';
+            row.innerHTML = `
+                <span class="contact-label">${escapeHtml(contact.label)}</span>
+                <span class="contact-phone">${escapeHtml(contact.phone) || '📞 未填写'}</span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    fetchData();
+</script>
+</body>
+</html>
