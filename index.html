@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>班级春游 · 分组通讯录</title>
+    <title>2026春游通讯录</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #f0f7ff; font-family: system-ui; padding: 20px 16px; }
@@ -20,42 +20,43 @@
         .contact-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; background: #f9fafc; border-radius: 18px; }
         .contact-label { font-weight: 600; color: #2b4f3c; }
         .contact-phone { font-family: monospace; background: white; padding: 5px 12px; border-radius: 40px; }
-        .admin-link { text-align: center; margin-top: 30px; }
-        .admin-link a { background: #eef2f5; padding: 6px 16px; border-radius: 50px; text-decoration: none; color: #2b7a4b; font-size: 0.8rem; }
-        @media (max-width: 550px) { .contact-row { flex-direction: column; align-items: flex-start; gap: 6px; } }
+        .story-button { text-align: center; margin-top: 30px; }
+        .story-button a { background: #e91e63; color: white; padding: 12px 24px; border-radius: 40px; text-decoration: none; font-size: 1.1rem; font-weight: 500; display: inline-block; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        footer { text-align: center; margin-top: 20px; font-size: 0.7rem; color: #8fafbf; }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="hero" style="text-align:center; margin-bottom:28px;">
         <h1 style="font-size:1.9rem; background:linear-gradient(135deg,#2b7a4b,#1d5a3c); background-clip:text; -webkit-background-clip:text; color:transparent;">🌸 春日同行 · 春游分组</h1>
-        <p>班级通讯录 | 分组名单</p>
+        <p>分组名单</p>
     </div>
 
     <div class="card">
-        <div class="card-title">📞 紧急联络站</div>
+        <div class="card-title">📞 紧急联系人</div>
         <div id="contactsContainer" class="contacts-list">加载中...</div>
     </div>
 
     <div class="card">
-        <div class="card-title">👥 春游小组 · 共8组</div>
+        <div class="card-title">👥 春游小组</div>
         <div id="groupsContainer" class="groups-grid">加载中...</div>
     </div>
 
-    <div class="admin-link">
-        <a href="admin.html">🔐 管理面板 (仅组织者)</a>
+    <!-- 新增“组网买玫瑰”按钮，删除了管理面板按钮 -->
+    <div class="story-button">
+        <a href="rose.html">🌹 组网买玫瑰 🌹</a>
     </div>
+    <footer>⚡ 春游愉快 · 安全第一</footer>
 </div>
 
 <script>
     // ========== 请替换为你的 Supabase 信息 ==========
     const SUPABASE_URL = 'https://qatawblssymiznettmcv.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_EZByEUjm1WpSlC2QF7BRsg_a_Evs-UM';
+    const SUPABASE_ANON_KEY = 'sb_publishable_EZByEUjm1WpSlC2QF7BRsg_a_Evs-UM';   // 务必填写完整
     // ============================================
 
     async function fetchData() {
         try {
-            // 获取分组（按 group_id 排序）
             const groupsRes = await fetch(`${SUPABASE_URL}/rest/v1/groups?order=group_id.asc`, {
                 headers: {
                     'apikey': SUPABASE_ANON_KEY,
@@ -65,7 +66,6 @@
             const groups = await groupsRes.json();
             renderGroups(groups);
 
-            // 获取联系人
             const contactsRes = await fetch(`${SUPABASE_URL}/rest/v1/contacts`, {
                 headers: {
                     'apikey': SUPABASE_ANON_KEY,
